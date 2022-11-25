@@ -1,6 +1,16 @@
 import stable_dreamfusion
+from os.path import dirname, realpath
 import setuptools
 import os
+
+
+def _read_requirements_file():
+    """Return the elements in requirements.txt."""
+    req_file_path = f'{os.path.dirname(__file__)}/requirements.txt'
+    print(req_file_path)
+    with open(req_file_path) as f:
+        return [line.strip() for line in f]
+    
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -16,7 +26,7 @@ setuptools.setup(
         url="https://github.com/ashawkey/stable-dreamfusion",
         packages=setuptools.find_packages(),
         include_package_data=True,
-        install_requires=['numpy'],
+        install_requires=_read_requirements_file(),
         classifiers=[
             ],
         python_requires=">=3.8"
