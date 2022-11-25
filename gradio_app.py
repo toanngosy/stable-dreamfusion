@@ -1,8 +1,8 @@
 import torch
 import argparse
 
-from nerf.provider import NeRFDataset
-from nerf.utils import *
+from stable_dreamfusion.nerf.provider import NeRFDataset
+from stable_dreamfusion.nerf.utils import *
 
 import gradio as gr
 import gc
@@ -77,9 +77,9 @@ opt.cuda_ray = True
 # opt.lambda_opacity = 0
 
 if opt.backbone == 'vanilla':
-    from nerf.network import NeRFNetwork
+    from stable_dreamfusion.nerf.network import NeRFNetwork
 elif opt.backbone == 'grid':
-    from nerf.network_grid import NeRFNetwork
+    from stable_dreamfusion.nerf.network_grid import NeRFNetwork
 else:
     raise NotImplementedError(f'--backbone {opt.backbone} is not implemented!')
 
@@ -90,10 +90,10 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'[INFO] loading models..')
 
 if opt.guidance == 'stable-diffusion':
-    from nerf.sd import StableDiffusion
+    from stable_dreamfusion.nerf.sd import StableDiffusion
     guidance = StableDiffusion(device)
 elif opt.guidance == 'clip':
-    from nerf.clip import CLIP
+    from stable_dreamfusion.nerf.clip import CLIP
     guidance = CLIP(device)
 else:
     raise NotImplementedError(f'--guidance {opt.guidance} is not implemented.')

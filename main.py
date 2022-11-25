@@ -1,11 +1,11 @@
 import torch
 import argparse
 
-from nerf.provider import NeRFDataset
-from nerf.utils import *
-from optimizer import Shampoo
+from stable_dreamfusion.nerf.provider import NeRFDataset
+from stable_dreamfusion.nerf.utils import *
+from stable_dreamfusion.optimizer import Shampoo
 
-from nerf.gui import NeRFGUI
+from stable_dreamfusion.nerf.gui import NeRFGUI
 
 # torch.autograd.set_detect_anomaly(True)
 
@@ -91,9 +91,9 @@ if __name__ == '__main__':
         opt.albedo_iters = opt.iters
 
     if opt.backbone == 'vanilla':
-        from nerf.network import NeRFNetwork
+        from stable_dreamfusion.nerf.network import NeRFNetwork
     elif opt.backbone == 'grid':
-        from nerf.network_grid import NeRFNetwork
+        from stable_dreamfusion.nerf.network_grid import NeRFNetwork
     else:
         raise NotImplementedError(f'--backbone {opt.backbone} is not implemented!')
 
@@ -135,10 +135,10 @@ if __name__ == '__main__':
         # scheduler = lambda optimizer: optim.lr_scheduler.OneCycleLR(optimizer, max_lr=opt.lr, total_steps=opt.iters, pct_start=0.1)
 
         if opt.guidance == 'stable-diffusion':
-            from nerf.sd import StableDiffusion
+            from stable_dreamfusion.nerf.sd import StableDiffusion
             guidance = StableDiffusion(device)
         elif opt.guidance == 'clip':
-            from nerf.clip import CLIP
+            from stable_dreamfusion.nerf.clip import CLIP
             guidance = CLIP(device)
         else:
             raise NotImplementedError(f'--guidance {opt.guidance} is not implemented.')

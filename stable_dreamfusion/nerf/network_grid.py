@@ -2,64 +2,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from activation import trunc_exp
+from .activation import trunc_exp
 from .renderer import NeRFRenderer
 
 import numpy as np
-from encoding import get_encoder
+from .encoding import get_encoder
 
 from .utils import safe_normalize
 
-# TODO: not sure about the details...
-class ResBlock(nn.Module):
-    def __init__(self, dim_in, dim_out, bias=True):
-        super().__init__()
-        self.dim_in = dim_in
-        self.dim_out = dim_out
-
-        self.dense = nn.Linear(self.dim_in, self.dim_out, bias=bias)
-        self.norm = nn.LayerNorm(self.dim_out)
-        self.activation = nn.SiLU(inplace=True)
-
-        if self.dim_in != self.dim_out:
-            self.skip = nn.Linear(self.dim_in, self.dim_out, bias=False)
-        else:
-            self.skip = None
-
-    def forward(self, x):
-        # x: [B, C]
-        identity = x
-
-        out = self.dense(x)
-        out = self.norm(out)
-
-        if self.skip is not None:
-            identity = self.skip(identity)
-
-        out += identity
-        out = self.activation(out)
-
-        return out
-
-class BasicBlock(nn.Module):
-    def __init__(self, dim_in, dim_out, bias=True):
-        super().__init__()
-        self.dim_in = dim_in
-        self.dim_out = dim_out
-
-        self.dense = nn.Linear(self.dim_in, self.dim_out, bias=bias)
-        self.activation = nn.ReLU(inplace=True)
-
-    def forward(self, x):
-        # x: [B, C]
-
-        out = self.dense(x)
-        out = self.activation(out)
-
-        return out    
-
 class MLP(nn.Module):
-    def __init__(self, dim_in, dim_out, dim_hidden, num_layers, bias=True, block=BasicBlock):
+    def __init__(self, dim_in, dim_out, dim_hidden, num_layers, bias=True):
         super().__init__()
         self.dim_in = dim_in
         self.dim_out = dim_out
@@ -68,51 +20,51 @@ class MLP(nn.Module):
 
         net = []
         for l in range(num_layers):
-            if l == 0:
-                net.append(BasicBlock(self.dim_in, self.dim_hidden, bias=bias))
-            elif l != num_layers - 1:
-                net.append(block(self.dim_hidden, self.dim_hidden, bias=bias))
-            else:
-                net.append(nn.Linear(self.dim_hidden, self.dim_out, bias=bias))
+            net.append(nn.Linear(self.dim_in if l == 0 else self.dim_hidden, self.dim_out if l == num_layers - 1 else self.dim_hidden, bias=bias))
 
         self.net = nn.ModuleList(net)
-        
     
     def forward(self, x):
-
         for l in range(self.num_layers):
             x = self.net[l](x)
-            
+            if l != self.num_layers - 1:
+                x = F.relu(x, inplace=True)
         return x
 
 
 class NeRFNetwork(NeRFRenderer):
     def __init__(self, 
                  opt,
-                 num_layers=4, # 5 in paper
-                 hidden_dim=96, # 128 in paper
-                 num_layers_bg=2, # 3 in paper
-                 hidden_dim_bg=64, # 64 in paper
-                 encoding='frequency_torch', # pure pytorch
+                 num_layers=3,
+                 hidden_dim=64,
+                 num_layers_bg=2,
+                 hidden_dim_bg=64,
                  ):
         
         super().__init__(opt)
 
         self.num_layers = num_layers
         self.hidden_dim = hidden_dim
-        self.encoder, self.in_dim = get_encoder(encoding, input_dim=3, multires=6)
-        self.sigma_net = MLP(self.in_dim, 4, hidden_dim, num_layers, bias=True, block=ResBlock)
+
+        self.encoder, self.in_dim = get_encoder('tiledgrid', input_dim=3, log2_hashmap_size=16, desired_resolution=2048 * self.bound)
+
+        self.sigma_net = MLP(self.in_dim, 4, hidden_dim, num_layers, bias=True)
 
         # background network
         if self.bg_radius > 0:
             self.num_layers_bg = num_layers_bg   
             self.hidden_dim_bg = hidden_dim_bg
-            self.encoder_bg, self.in_dim_bg = get_encoder(encoding, input_dim=3, multires=4)
+            
+            # use a very simple network to avoid it learning the prompt...
+            # self.encoder_bg, self.in_dim_bg = get_encoder('tiledgrid', input_dim=2, num_levels=4, desired_resolution=2048)
+            self.encoder_bg, self.in_dim_bg = get_encoder('frequency', input_dim=3, multires=4)
+
             self.bg_net = MLP(self.in_dim_bg, 3, hidden_dim_bg, num_layers_bg, bias=True)
             
         else:
             self.bg_net = None
 
+    # add a density blob to the scene center
     def gaussian(self, x):
         # x: [B, N, 3]
         
@@ -151,21 +103,17 @@ class NeRFNetwork(NeRFRenderer):
         ], dim=-1)
 
         return -normal
-    
+
+
     def normal(self, x):
-    
-        with torch.enable_grad():
-            x.requires_grad_(True)
-            sigma, albedo = self.common_forward(x)
-            # query gradient
-            normal = - torch.autograd.grad(torch.sum(sigma), x, create_graph=True)[0] # [N, 3]
-        
-        # normal = self.finite_difference_normal(x)
+
+        normal = self.finite_difference_normal(x)
         normal = safe_normalize(normal)
-        # normal = torch.nan_to_num(normal)
+        normal = torch.nan_to_num(normal)
 
         return normal
-        
+
+    
     def forward(self, x, d, l=None, ratio=1, shading='albedo'):
         # x: [N, 3], in [-bound, bound]
         # d: [N, 3], view direction, nomalized in [-1, 1]
@@ -180,17 +128,8 @@ class NeRFNetwork(NeRFRenderer):
         else:
             # query normal
 
-            # sigma, albedo = self.common_forward(x)
-            # normal = self.normal(x)
-        
-            with torch.enable_grad():
-                x.requires_grad_(True)
-                sigma, albedo = self.common_forward(x)
-                # query gradient
-                normal = - torch.autograd.grad(torch.sum(sigma), x, create_graph=True)[0] # [N, 3]
-            normal = safe_normalize(normal)
-            # normal = torch.nan_to_num(normal)
-            # normal = normal.detach()
+            sigma, albedo = self.common_forward(x)
+            normal = self.normal(x)
 
             # lambertian shading
             lambertian = ratio + (1 - ratio) * (normal @ l).clamp(min=0) # [N,]
@@ -231,12 +170,12 @@ class NeRFNetwork(NeRFRenderer):
     def get_params(self, lr):
 
         params = [
-            # {'params': self.encoder.parameters(), 'lr': lr * 10},
+            {'params': self.encoder.parameters(), 'lr': lr * 10},
             {'params': self.sigma_net.parameters(), 'lr': lr},
         ]        
 
         if self.bg_radius > 0:
-            # params.append({'params': self.encoder_bg.parameters(), 'lr': lr * 10})
+            params.append({'params': self.encoder_bg.parameters(), 'lr': lr * 10})
             params.append({'params': self.bg_net.parameters(), 'lr': lr})
 
         return params
