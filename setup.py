@@ -1,4 +1,4 @@
-import dreamfusion
+import stable_dreamfusion
 import setuptools
 import os
 
