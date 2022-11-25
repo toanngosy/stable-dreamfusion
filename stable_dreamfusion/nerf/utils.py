@@ -261,7 +261,7 @@ class Trainer(object):
             self.log_ptr = open(self.log_path, "a+")
 
             self.ckpt_path = os.path.join(self.workspace, 'checkpoints')
-            self.best_path = f"{self.ckpt_path}/{self.name}.pth"
+            self.best_path = f"{self.ckpt_path}/{self.name}.ckpt"
             os.makedirs(self.ckpt_path, exist_ok=True)
             
         self.log(f'[INFO] Trainer: {self.name} | {self.time_stamp} | {self.device} | {"fp16" if self.fp16 else "fp32"} | {self.workspace}')
@@ -870,7 +870,7 @@ class Trainer(object):
 
             state['model'] = self.model.state_dict()
 
-            file_path = f"{name}.pth"
+            file_path = f"{name}.ckpt"
 
             self.stats["checkpoints"].append(file_path)
 
@@ -904,7 +904,7 @@ class Trainer(object):
             
     def load_checkpoint(self, checkpoint=None, model_only=False):
         if checkpoint is None:
-            checkpoint_list = sorted(glob.glob(f'{self.ckpt_path}/*.pth'))
+            checkpoint_list = sorted(glob.glob(f'{self.ckpt_path}/*.ckpt'))
             if checkpoint_list:
                 checkpoint = checkpoint_list[-1]
                 self.log(f"[INFO] Latest checkpoint is {checkpoint}")
