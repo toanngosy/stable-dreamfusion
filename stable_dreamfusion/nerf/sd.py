@@ -17,7 +17,7 @@ def seed_everything(seed):
     #torch.backends.cudnn.benchmark = True
 
 class StableDiffusion(nn.Module):
-    def __init__(self, device):
+    def __init__(self, device, pretrained_model_name_or_path=None):
         super().__init__()
 
         try:
@@ -36,14 +36,24 @@ class StableDiffusion(nn.Module):
         print(f'[INFO] loading stable diffusion...')
                 
         # 1. Load the autoencoder model which will be used to decode the latents into image space. 
-        self.vae = AutoencoderKL.from_pretrained("runwayml/stable-diffusion-v1-5", subfolder="vae", use_auth_token=self.token).to(self.device)
+        if pretrained_model_name_or_path:
+            self.vae = AutoencoderKL.from_pretrained(pretrained_model_name_or_path, subfolder="vae").to(self.device)
 
-        # 2. Load the tokenizer and text encoder to tokenize and encode the text. 
-        self.tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
-        self.text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-large-patch14").to(self.device)
+            # 2. Load the tokenizer and text encoder to tokenize and encode the text. 
+            self.tokenizer = CLIPTokenizer.from_pretrained(pretrained_model_name_or_path, subfolder="tokenizer")
+            self.text_encoder = CLIPTextModel.from_pretrained(pretrained_model_name_or_path, subfolder="text_encoder").to(self.device)
 
-        # 3. The UNet model for generating the latents.
-        self.unet = UNet2DConditionModel.from_pretrained("runwayml/stable-diffusion-v1-5", subfolder="unet", use_auth_token=self.token).to(self.device)
+            # 3. The UNet model for generating the latents.
+            self.unet = UNet2DConditionModel.from_pretrained(pretrained_model_name_or_path, subfolder="unet", torch_dtype=torch.float32).to(self.device)
+        else:
+            self.vae = AutoencoderKL.from_pretrained("runwayml/stable-diffusion-v1-5", subfolder="vae", use_auth_token=self.token).to(self.device)
+
+            # 2. Load the tokenizer and text encoder to tokenize and encode the text. 
+            self.tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
+            self.text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-large-patch14").to(self.device)
+
+            # 3. The UNet model for generating the latents.
+            self.unet = UNet2DConditionModel.from_pretrained("runwayml/stable-diffusion-v1-5", subfolder="unet", use_auth_token=self.token).to(self.device)
 
         # 4. Create a scheduler for inference
         self.scheduler = PNDMScheduler(beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear", num_train_timesteps=self.num_train_timesteps)
