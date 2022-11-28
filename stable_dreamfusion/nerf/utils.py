@@ -256,6 +256,7 @@ class Trainer(object):
         # workspace prepare
         self.log_ptr = None
         if self.workspace is not None:
+            print(self.workspace)
             os.makedirs(self.workspace, exist_ok=True)        
             self.log_path = os.path.join(workspace, f"log_{self.name}.txt")
             self.log_ptr = open(self.log_path, "a+")
