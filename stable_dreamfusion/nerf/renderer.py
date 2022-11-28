@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import mcubes
-import raymarching
+from stable_dreamfusion import raymarching
 from .utils import custom_meshgrid, safe_normalize
 
 def sample_pdf(bins, weights, n_samples, det=False):
