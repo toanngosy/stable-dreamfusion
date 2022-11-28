@@ -54,19 +54,19 @@ def get_encoder(encoding, input_dim=3,
         encoder = FreqEncoder_torch(input_dim=input_dim, max_freq_log2=multires-1, N_freqs=multires, log_sampling=True)
 
     elif encoding == 'frequency': # CUDA implementation, faster than torch.
-        from freqencoder import FreqEncoder
+        from stable_dreamfusion.freqencoder import FreqEncoder
         encoder = FreqEncoder(input_dim=input_dim, degree=multires)
 
     elif encoding == 'sphere_harmonics':
-        from shencoder import SHEncoder
+        from stable_dreamfusion.shencoder import SHEncoder
         encoder = SHEncoder(input_dim=input_dim, degree=degree)
 
     elif encoding == 'hashgrid':
-        from gridencoder import GridEncoder
+        from stable_dreamfusion.gridencoder import GridEncoder
         encoder = GridEncoder(input_dim=input_dim, num_levels=num_levels, level_dim=level_dim, base_resolution=base_resolution, log2_hashmap_size=log2_hashmap_size, desired_resolution=desired_resolution, gridtype='hash', align_corners=align_corners)
     
     elif encoding == 'tiledgrid':
-        from gridencoder import GridEncoder
+        from stable_dreamfusion.gridencoder import GridEncoder
         encoder = GridEncoder(input_dim=input_dim, num_levels=num_levels, level_dim=level_dim, base_resolution=base_resolution, log2_hashmap_size=log2_hashmap_size, desired_resolution=desired_resolution, gridtype='tiled', align_corners=align_corners)
 
     else:
