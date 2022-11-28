@@ -1,0 +1,4 @@
+recursive-include stable_dreamfusion/freqencoder/src *
+recursive-include stable_dreamfusion/gridencoder/src *
+recursive-include stable_dreamfusion/shenencoder/src *
+recursive-include stable_dreamfusion/raymarching/src *
